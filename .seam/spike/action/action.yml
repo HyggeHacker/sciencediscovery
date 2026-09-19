@@ -1,0 +1,62 @@
+name: seam spike gate
+description: >
+  Declaration gate for MCP trust boundaries. Runs the seam spike's mcp-config
+  deriver on base and head, posts or edits exactly one PR comment, and fails the
+  check only on a new, undeclared, product-plane crossing.
+inputs:
+  spike-dir:
+    description: Directory holding Derive.ts and Diff.ts (vendored into the repo).
+    required: false
+    default: .seam/spike
+  block-dev-plane:
+    description: Also fail on crossings from dev-plane (editor agent) config files.
+    required: false
+    default: "false"
+  github-token:
+    description: Token used to post the PR comment.
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+    - name: seam diff
+      id: diff
+      shell: bash
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        SPIKE_DIR: ${{ inputs.spike-dir }}
+        BLOCK_DEV: ${{ inputs.block-dev-plane }}
+      run: |
+        set +e
+        git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
+        extra=""
+        if [ "$BLOCK_DEV" = "true" ]; then extra="--block-dev-plane"; fi
+        bun "$SPIKE_DIR/Diff.ts" diff --repo . --base "$BASE_SHA" --head "$HEAD_SHA" $extra > seam-comment.txt
+        echo "exit=$?" >> "$GITHUB_OUTPUT"
+        cat seam-comment.txt
+    - name: post or edit the one comment
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      run: |
+        marker='<!-- seam-spike-comment -->'
+        { echo "$marker"; echo '```'; cat seam-comment.txt; echo '```'; } > body.md
+        existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$existing" -F body=@body.md > /dev/null
+        else
+          gh api "repos/$REPO/issues/$PR/comments" -F body=@body.md > /dev/null
+        fi
+    - name: gate
+      shell: bash
+      env:
+        EXIT: ${{ steps.diff.outputs.exit }}
+      run: |
+        if [ "$EXIT" = "1" ]; then echo "seam: blocking crossing present (see the PR comment)"; exit 1; fi
+        if [ "$EXIT" != "0" ]; then echo "seam: usage or path error ($EXIT)"; exit "$EXIT"; fi

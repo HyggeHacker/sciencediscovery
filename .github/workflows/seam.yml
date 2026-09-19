@@ -1,0 +1,20 @@
+# Copy to .github/workflows/seam.yml in the target repo after vendoring the
+# spike (bun spike/mcp-config/action/Vendor.ts <target-repo>).
+name: seam
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  seam:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.seam/spike/action
+        with:
+          spike-dir: .seam/spike
+          block-dev-plane: "false"
