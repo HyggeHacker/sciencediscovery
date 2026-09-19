@@ -179,7 +179,9 @@ function audienceOf(s: ServerBlock): string | undefined {
 }
 
 const SOURCE_EXT = /\.(ts|tsx|js|mjs|cjs|py|rs|go|rb|java|kt|swift|sh)$/i;
-const SKIP_DIR = new Set(["node_modules", ".git", "dist", "build", "target", "vendor", ".venv", "venv", "__pycache__"]);
+// `.seam` and `.github` are excluded so the vendored spike (whose path table
+// names every config filename) and the workflow never count as the reader.
+const SKIP_DIR = new Set(["node_modules", ".git", ".seam", ".github", "dist", "build", "target", "vendor", ".venv", "venv", "__pycache__"]);
 
 /** Non-test source files under root, bounded so a monorepo cannot stall the run. */
 function sourceFiles(root: string, limit = 4000): string[] {
