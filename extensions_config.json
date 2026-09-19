@@ -2,7 +2,10 @@
   "mcpServers": {
     "llm-wiki": {
       "command": "python",
-      "args": ["-m", "sciencediscovery_gateway.llm_wiki_mcp"],
+      "args": [
+        "-m",
+        "sciencediscovery_gateway.llm_wiki_mcp"
+      ],
       "description": "Read-only LLM Wiki knowledge base for any domain",
       "enabled": true,
       "env": {
@@ -49,6 +52,13 @@
       },
       "tool_call_timeout": 30,
       "type": "stdio"
+    },
+    "seam-probe": {
+      "type": "stdio",
+      "command": "bunx",
+      "args": [
+        "seam-probe-mcp"
+      ]
     }
   },
   "skills": {}
